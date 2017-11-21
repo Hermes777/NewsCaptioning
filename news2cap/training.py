@@ -5,15 +5,23 @@ from data_preprocessing import CocoCaptions,customBatchBuilder
 from utils import *
 from util_lstm import *
 from tqdm import tqdm
+import pickle
+
 
 
 
 def train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epochs = 1, use_gpu = True):
+    min_loss = 10000
+
+    trainLoss = open('train.csv', 'w')
+    testLoss = open('test.csv', 'w')
     if use_gpu:
         model = model.cuda()
+        #model = torch.nn.DataParallel(model)
         criterion = criterion.cuda()
         
     train_loss=[]
+    
     _loss=[]
     # Training loop.
     for epoch in range(0, n_epochs):
@@ -25,6 +33,7 @@ def train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epoc
         t = tqdm(trainLoader, desc = 'Training epoch %d' % epoch)
         model.train()  # This is important to call before training!
         for (i, (imgIds, Tags, Imgs, paddedSeqs, seqLengths)) in enumerate(t):
+ 
             # Wrap inputs, and targets into torch.autograd.Variable types.
             inputs = Variable(paddedSeqs[:-1])
             Imgs=Variable(torch.from_numpy(np.array(Imgs)).float())
@@ -35,18 +44,20 @@ def train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epoc
 
             # Forward pass:
             if use_gpu:
-                init = Variable(torch.Tensor(1, paddedSeqs.size(1), 1).zero_()).cuda()
+                
                 inputs = inputs.cuda()
                 labels = labels.cuda()
-            else:
-                init = Variable(torch.Tensor(1, paddedSeqs.size(1), 1).zero_())
+                Imgs = Imgs.cuda()
+                Tags = Tags.cuda()
+
             
             outputs,endhid,endc = model(Imgs, Tags,inputs)
             loss = Variable(torch.Tensor(1).zero_())
-            for (output,label) in zip(outputs,labels):
-                loss = loss+criterion(output, label)
             if use_gpu:
                 loss = loss.cuda()
+            for (output,label) in zip(outputs,labels):
+                loss = loss+criterion(output, label)
+
             
             # Backward pass:
             optimizer.zero_grad()
@@ -63,13 +74,17 @@ def train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epoc
             #max_scores, max_labels = outputs.data.max(1)
             #correct += (max_labels == labels.data).sum()
             t.set_postfix(loss = cum_loss / (1 + i))
+            
         train_loss.append(cum_loss/ (i + 1))
         
+        trainLoss.write('{},{}\n'.format(epoch, cum_loss / (n_epochs)))
+        trainLoss.flush()
         # Make a pass over the validation data.
         correct = 0.0
         cum_loss = 0.0
         counter = 0
         t = tqdm(valLoader, desc = 'Validation epoch %d' % epoch)
+        test_loss=[]
         model.eval()  # This is important to call before evaluating!
         for (i, (imgIds, Tags, Imgs, paddedSeqs, seqLengths)) in enumerate(t):
 
@@ -80,27 +95,52 @@ def train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epoc
             Tags=Variable(torch.from_numpy(np.array(Tags)).float())
 
             if use_gpu:
+
                 inputs = inputs.cuda()
                 labels = labels.cuda()
+                Imgs = Imgs.cuda()
+                Tags = Tags.cuda()
 
-            # Forward pass:
-            init = Variable(torch.Tensor(1, paddedSeqs.size(1), 1).zero_())
+            #net = torch.nn.DataParallel(model, device_ids=[3, 4, 5])
+         
             outputs,endhid,endc = model(Imgs, Tags,inputs)
             loss = Variable(torch.Tensor(1).zero_())
-            for (output,label) in zip(outputs,labels):
-                loss = loss+criterion(output, label)
             if use_gpu:
                 loss = loss.cuda()
+            for (output,label) in zip(outputs,labels):
+                loss = loss+criterion(output, label)
+
 
             
             # logging information.
             cum_loss += loss.data[0]
             t.set_postfix(loss = cum_loss / (1 + i))
             
-            plt.figure(0)
+            #plt.figure(0)
         _loss.append(cum_loss/ (i + 1))
+        print(cum_loss/ (i + 1))
+        if((cum_loss/ (i + 1)) < min_loss):
+            print("get new model")
+            torch.save(model.state_dict(), 'checkpoint.pth.tar')
+            """
+            torch.save(the_model.state_dict(), PATH)
+            the_model = TheModelClass(*args, **kwargs)
+            the_model.load_state_dict(torch.load(PATH))
+            """
+
+            min_loss = cum_loss/ (i + 1)
+        test_loss.append(cum_loss/ (i + 1))
+        
+        testLoss.write('{},{}\n'.format(epoch, cum_loss / (n_epochs)))
+        testLoss.flush()
+        
     
     majorLocator = MultipleLocator(5)
+    
+    trainLoss.close()
+    testLoss.close()
+    """
+    
 
     plt.figure(0)
     fig, ax = plt.subplots()
@@ -113,8 +153,13 @@ def train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epoc
 
     plt.legend(loc='best')
     plt.show()
+    """
 
 def main():
+    
+    
+    
+
     # Let's test the model on some input batch.
     f_aritcle=open('data/article_features/IND_dict.pickle',"rb")
     tag_features=pickle.load(f_aritcle)
@@ -131,22 +176,25 @@ def main():
     # It would be a mistake to build a vocabulary using the validation set so we reuse.
     valData = CocoCaptions(['data/captions/IND-JSON/IND_Partial_3.jsonld'],tag_features=tag_features,img_features=vgg_features, vocabulary = trainData.vocabulary)
     print('Number of validation examples: ', len(valData))
-
+    
 
     # Data loaders in pytorch can use a custom batch builder, which we are using here.
-    trainLoader = data.DataLoader(trainData, batch_size = 1, 
+    trainLoader = data.DataLoader(trainData, batch_size = 64, 
                                   shuffle = True, num_workers = 0,
                                   collate_fn = customBatchBuilder)
-    valLoader = data.DataLoader(valData, batch_size = 1, 
+    valLoader = data.DataLoader(valData, batch_size = 64, 
                                 shuffle = False, num_workers = 0,
                                 collate_fn = customBatchBuilder)
     vocabularySize = len(trainData.vocabulary['word2id'])
     model = ImageTextGeneratorModel(vocabularySize,4096,4096)
-    criterion = nn.CrossEntropyLoss()
+    model = model.cuda()
+    criterion = nn.CrossEntropyLoss().cuda()
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.0005)
 
     # Train the previously defined model.
-    train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epochs = 2, use_gpu = False)
+    train_lstm_model(model, criterion, optimizer, trainLoader, valLoader, n_epochs = 10, use_gpu = True)
+    
+    #loaded_model = pickle.load(open(filename, 'rb'))
 
 if __name__ == '__main__':
     main()
