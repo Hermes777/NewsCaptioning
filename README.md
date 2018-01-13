@@ -1,8 +1,4 @@
 # NewsCaptioning
-It is an ongoing project to caption the image from news data
+This repository only contains the source codes.
 
-The data is not available now, please download them on google drive.
-
-To run the code, simple goes:
-
->python training.py
+The data is not provided now because of the space restriction.
