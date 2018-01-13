@@ -2,11 +2,12 @@
 # of many common layers, which is especially useful for layers that do not have any parameters.
 # e.g. relu, sigmoid, softmax, etc.
 from utils import *
-from util_lstm import LSTM,entangledLSTMCell
+from util_lstm import LSTM,entangledLSTMCell,LSTMCell
 from data_preprocessing import CocoCaptions,customBatchBuilder
 import math
 import torch.nn.functional as F
 import torchvision.models as models
+
 
 
 class ImageTextGeneratorModel(nn.Module):
@@ -21,10 +22,10 @@ class ImageTextGeneratorModel(nn.Module):
         super(ImageTextGeneratorModel, self).__init__()
         # See documentation for nn.Embedding here:
         # http://pytorch.org/docs/master/nn.html#torch.nn.Embedding
-        self.embedder = nn.Embedding(vocabularySize, 2048)
+        self.embedder = nn.Embedding(vocabularySize, 300)
 
-        self.Image2Embedding = nn.Linear(imageFeatureSize, 2048)
-        self.rnn = LSTM(entangledLSTMCell, 2048, 1024 , factor_size=2048, entangled_size=entangled_size, batch_first = False)
+        self.Image2Embedding = nn.Linear(imageFeatureSize, 300)
+        self.rnn = LSTM(entangledLSTMCell, 300, 1024 , factor_size=1024, entangled_size=entangled_size,num_layers=1, batch_first = False)
         self.classifier = nn.Linear(1024, vocabularySize)
         self.vocabularySize = vocabularySize
         #self.resnet = models.vgg16(pretrained=True)
@@ -32,7 +33,7 @@ class ImageTextGeneratorModel(nn.Module):
 
 
     # The forward pass makes the sequences go through the three layers defined above.
-    def forward(self, vggFeatures, tagFeatures, paddedSeqs):
+    def forward(self, vggFeatures, tagFeatures, paddedSeqs, initialHiddenState=None, initialCellState=None, initialImage=0):
         
         batchSequenceLength = paddedSeqs.size(0)  # 0-dim is sequence-length-dim.
         batchSize = paddedSeqs.size(1)  # 1-dim is batch dimension.
@@ -43,18 +44,77 @@ class ImageTextGeneratorModel(nn.Module):
         #print('vgg',vggFeatures)
 
         ImageEmbeddings=self.Image2Embedding(vggFeatures)
-        #print('emb',ImageEmbeddings)
-        ImageEmbeddings = ImageEmbeddings.view(1,64,2048)
+        
+        ImageEmbeddings = ImageEmbeddings.view(1,batchSize,300)
         # Pass the sequence of word embeddings to the RNN.
-        embeddingVectors=torch.cat((ImageEmbeddings,embeddingVectors[1:]), 0)
-        rnnOutput, finalHiddenState = self.rnn(embeddingVectors,entangler=tagFeatures)
+        if initialImage==0:
+            embeddingVectors=torch.cat((ImageEmbeddings,embeddingVectors[1:]), 0)
+        elif initialImage==1:
+            embeddingVectors=ImageEmbeddings
+        else:
+            embeddingVectors=embeddingVectors
+        #print(initialHiddenState.data.shape)
+        if not (initialHiddenState is None):
+            rnnOutput, (finalHiddenState, finalCellState) = self.rnn(embeddingVectors,hx=(initialHiddenState,initialCellState),entangler=tagFeatures)
+        else:
+            rnnOutput, (finalHiddenState, finalCellState) = self.rnn(embeddingVectors,entangler=tagFeatures)
         
         # Collapse the batch and sequence-length dimensions in order to use nn.Linear.
+        #print(rnnOutput)
         flatSeqOutput = rnnOutput.view(-1, 1024)
         predictions = self.classifier(flatSeqOutput)
+        #print('classifier',self.classifier.weight)
         
         # Expand back the batch and sequence-length dimensions and return. 
         return predictions.view(batchSequenceLength, batchSize, self.vocabularySize), \
-               finalHiddenState, embeddingVectors
-        
+               (finalHiddenState, finalCellState)
+'''
+# Let's test the model on some input batch.
+f_aritcle=open('data/article_features/IND_dict.pickle',"rb")
+tag_features=pickle.load(f_aritcle)
+#print(tag_features)
 
+f_image=open('data/image_features/vggfeatures-IND.pickle',"rb")
+vgg_features=pickle.load(f_image)
+print(len(vgg_features['6bd6ca984a47ea8f9a74e87e465cc50df155e77f']))
+
+# Let's test the data class.
+trainData = CocoCaptions(['data/captions/IND-JSON/IND_Partial_0.jsonld','data/captions/IND-JSON/IND_Partial_1.jsonld','data/captions/IND-JSON/IND_Partial_2.jsonld'],tag_features=tag_features,img_features=vgg_features)
+print('Number of training examples: ', len(trainData))
+
+
+# It would be a mistake to build a vocabulary using the validation set so we reuse.
+valData = CocoCaptions(['data/captions/IND-JSON/IND_Partial_3.jsonld'],tag_features=tag_features,img_features=vgg_features, vocabulary = trainData.vocabulary)
+print('Number of validation examples: ', len(valData))
+
+
+# Data loaders in pytorch can use a custom batch builder, which we are using here.
+trainLoader = data.DataLoader(trainData, batch_size = 1, 
+                              shuffle = True, num_workers = 0,
+                              collate_fn = customBatchBuilder)
+valLoader = data.DataLoader(valData, batch_size = 1, 
+                            shuffle = False, num_workers = 0,
+                            collate_fn = customBatchBuilder)
+
+# Now let's try using the data loader.
+index, (imgIds, Tags, Imgs, paddedSeqs, seqLengths) = next(enumerate(trainLoader))
+
+
+
+vocabularySize = len(trainData.vocabulary['word2id'])
+model = ImageTextGeneratorModel(vocabularySize,4096,4096)
+#print model
+print("start")
+model.eval()
+# Create the initial hidden state for the RNN.
+index, (imgIds, Tags, Imgs, paddedSeqs, seqLengths) = next(enumerate(trainLoader))
+print(len(Tags))
+Imgs=Variable(torch.from_numpy(np.array(Imgs)).float())
+Tags=Variable(torch.from_numpy(np.array(Tags)).float())
+predictions, _,embed = model(Imgs, Tags,torch.autograd.Variable(paddedSeqs))
+
+print('outputs', predictions.size()) # 10 output softmax predictions over our vocabularySize outputs.
+
+print('Here is the model:')
+print(model)
+'''

@@ -2,7 +2,7 @@ from utils import *
 
 class CocoCaptions(data.Dataset):
     # Load annotations in the initialization of the object.
-    def __init__(self, captionsFiles, tag_features, img_features, vocabulary = None):
+    def __init__(self, captionsFiles, tag_features, img_features, batchsize = 64, vocabulary = None):
         self.ids=[]
         self.Imgs=[]
         self.Tags=[]
@@ -15,30 +15,49 @@ class CocoCaptions(data.Dataset):
                 #print(x['image'])
                 if x['@id']==None or (x['@id'] not in img_features) or (x['@id']+".txt" not in tag_features):
                     continue
-                if x['image']['caption']==None:
+                if (x['headline'] is None) or len(x['headline'])<2:
                     continue
-                if '/' in x['image']['caption']:
-                    continue
-                self.annotations.append(x['image']['caption'])
+                #if '/' in x['image']['caption']:
+                #    continue
+                self.annotations.append(x['headline'])
                 self.Imgs.append(img_features[x['@id']])
                 self.Tags.append(tag_features[x['@id']+".txt"])
                 self.ids.append(x['@id'])
         #print(self.annotations)
         
         # Build a vocabulary if not provided.
+        _len=len(self.annotations)//batchsize*batchsize
+        self.annotations=self.annotations[:_len]
+        self.Imgs=self.Imgs[:_len]
+        self.Tags=self.Tags[:_len]
+        self.ids=self.ids[:_len]
         if not vocabulary:
             self.build_vocabulary()
         else:
             self.vocabulary = vocabulary
         
     # Build a vocabulary using the top 50000 words.
-    def build_vocabulary(self, vocabularySize = 50000):
+    def build_vocabulary(self, vocabularySize = 12000):
         # Count words, this will take a while.
         word_counter = dict()
         for annotation in self.annotations:
-            if annotation[0]=='\"' and annotation[-1]=='\"':
+            if annotation[0]=='\"' or annotation[-1]=='\"':
                 annotation = annotation[1:-1];
             words = word_tokenize(annotation.lower())
+            if "\'" in words:
+                words.remove("\'")
+            if "\"" in words:
+                words.remove("\"")
+            if "\\" in words:
+                words.remove("\\")
+            if "/" in words:
+                words.remove("/")
+            if "\"\"" in words:
+                words.remove("\"\"")
+            if "\'\'" in words:
+                words.remove("\'\'")
+            if "``" in words:
+                words.remove("``")
             for word in words:
                 word_counter[word] = word_counter.get(word, 0) + 1
                 
@@ -58,9 +77,30 @@ class CocoCaptions(data.Dataset):
     # Transform a caption into a list of word ids.
     def caption2ids(self, caption):
         word2id = self.vocabulary['word2id']
-        caption_ids = [word2id.get(w, word2id['UNK']) for w in word_tokenize(caption.lower())]
+        words=word_tokenize(caption.lower())
+        if "\'" in words:
+            words.remove("\'")
+        if "\"" in words:
+            words.remove("\"")
+        if "\"\"" in words:
+            words.remove("\"\"")
+        if "\'\'" in words:
+            words.remove("\'\'")
+        if "``" in words:
+            words.remove("``")
+            
+        caption_ids = [word2id.get(w, word2id['UNK']) for w in words]
+        #print("UNK id: ",word2id['UNK'])
+        
+        #print("words:", words)
+        #if word2id['UNK'] in caption_ids: 
+            
+        #    caption_ids = [x for x in caption_ids if x != word2id['UNK']]
+            
+            
         caption_ids.insert(0, word2id['[START]'])
         caption_ids.append(word2id['[END]'])
+        #print("after",caption_ids)
         return torch.LongTensor(caption_ids)
     
     # Transform a list of word ids into a caption.

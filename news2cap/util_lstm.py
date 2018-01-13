@@ -148,32 +148,32 @@ class entangledLSTMCell(nn.Module):
 
         #weight matrices of input-hidden for element i
         self.weight_a_ih_i = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_ih_i = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_ih_i = nn.Parameter(
-            torch.FloatTensor(input_size, factor_size))
+            (torch.rand(input_size, factor_size)-0.5)*(2.0/(input_size*factor_size)))
         #weight matrices of input-hidden for element f
         self.weight_a_ih_f = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_ih_f = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_ih_f = nn.Parameter(
-            torch.FloatTensor(input_size, factor_size))
+            (torch.rand(input_size, factor_size)-0.5)*(2.0/(input_size*factor_size)))
         #weight matrices of input-hidden for element o
         self.weight_a_ih_o = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_ih_o = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_ih_o = nn.Parameter(
-            torch.FloatTensor(input_size, factor_size))
+            (torch.rand(input_size, factor_size)-0.5)*(2.0/(input_size*factor_size)))
         #weight matrices of input-hidden for element c
         self.weight_a_ih_c = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_ih_c = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_ih_c = nn.Parameter(
-            torch.FloatTensor(input_size, factor_size))
+            (torch.rand(input_size, factor_size)-0.5)*(2.0/(input_size*factor_size)))
 
         '''
         For the input-hidden matrices
@@ -181,40 +181,40 @@ class entangledLSTMCell(nn.Module):
 
         #weight matrices of input-hidden for element i
         self.weight_a_hh_i = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_hh_i = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_hh_i = nn.Parameter(
-            torch.FloatTensor(hidden_size, factor_size))
+            (torch.rand(hidden_size, factor_size)-0.5)*(2.0/(hidden_size*factor_size)))
         #weight matrices of input-hidden for element f
         self.weight_a_hh_f = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_hh_f = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_hh_f = nn.Parameter(
-            torch.FloatTensor(hidden_size, factor_size))
+            (torch.rand(hidden_size, factor_size)-0.5)*(2.0/(hidden_size*factor_size)))
         #weight matrices of input-hidden for element o
         self.weight_a_hh_o = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_hh_o = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_hh_o = nn.Parameter(
-            torch.FloatTensor(hidden_size, factor_size))
+            (torch.rand(hidden_size, factor_size)-0.5)*(2.0/(hidden_size*factor_size)))
         #weight matrices of input-hidden for element c
         self.weight_a_hh_c = nn.Parameter(
-            torch.FloatTensor(factor_size, hidden_size))
+            (torch.rand(factor_size, hidden_size)-0.5)*(2.0/(factor_size*hidden_size)))
         self.weight_b_hh_c = nn.Parameter(
-            torch.FloatTensor(entangled_size, factor_size))
+            (torch.rand(entangled_size, factor_size)-0.5)*(2.0/(entangled_size*factor_size)))
         self.weight_c_hh_c = nn.Parameter(
-            torch.FloatTensor(hidden_size, factor_size))
+            (torch.rand(hidden_size, factor_size)-0.5)*(2.0/(hidden_size*factor_size)))
 
 
 
         if use_bias:
-            self.bias_i = nn.Parameter(torch.FloatTensor(hidden_size))
-            self.bias_f = nn.Parameter(torch.FloatTensor(hidden_size))
-            self.bias_o = nn.Parameter(torch.FloatTensor(hidden_size))
-            self.bias_c = nn.Parameter(torch.FloatTensor(hidden_size))
+            self.bias_i = nn.Parameter((torch.rand(hidden_size)-0.5)*(2.0/hidden_size))
+            self.bias_f = nn.Parameter((torch.rand(hidden_size)-0.5)*(2.0/hidden_size))
+            self.bias_o = nn.Parameter((torch.rand(hidden_size)-0.5)*(2.0/hidden_size))
+            self.bias_c = nn.Parameter((torch.rand(hidden_size)-0.5)*(2.0/hidden_size))
         else:
             self.register_parameter('bias_i', None)
             self.register_parameter('bias_f', None)
@@ -249,6 +249,7 @@ class entangledLSTMCell(nn.Module):
         """
 
         h_0, c_0 = hx
+
         i = torch.mm(torch.mm(entangler,self.weight_b_ih_i)*torch.mm(input_,self.weight_c_ih_i),self.weight_a_ih_i)\
             +torch.mm(torch.mm(entangler,self.weight_b_hh_i)*torch.mm(h_0,self.weight_c_hh_i),self.weight_a_hh_i)+self.bias_i
         f = torch.mm(torch.mm(entangler,self.weight_b_ih_f)*torch.mm(input_,self.weight_c_ih_f),self.weight_a_ih_f)\
@@ -259,6 +260,9 @@ class entangledLSTMCell(nn.Module):
             +torch.mm(torch.mm(entangler,self.weight_b_hh_c)*torch.mm(h_0,self.weight_c_hh_c),self.weight_a_hh_c)+self.bias_c
         c_1=torch.sigmoid(i)*torch.tanh(c_tilde)+torch.sigmoid(f)*c_0
         h_1 = torch.sigmoid(o) * torch.tanh(c_1)
+        #print('i',input_)
+        #print('f',f)
+        #print(torch.mm(input_,self.weight_c_ih_i))
         return h_1, c_1
 class BNLSTMCell(nn.Module):
 
